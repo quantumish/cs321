@@ -16,14 +16,13 @@ struct Layer {
 Layer::Layer(Eigen::MatrixXf _w, Eigen::MatrixXf _x, Eigen::MatrixXf _b)
     :W{_w}, x{_x}, b{_b} {}
 
-class Network {
+struct Network {
     //std::ifstream file;
     std::vector<Layer> layers;
-public:
+  
     Network(char* path, size_t depth, size_t width, size_t batch_size);
     Network(size_t depth, size_t width, size_t batch_size);
     float forward(float in, float label);
-    void step();
 };
 
 Network::Network(char* path, size_t depth, size_t width, size_t batch_size)
@@ -68,10 +67,10 @@ Network::Network(size_t depth, size_t width, size_t batch_size) {
     );
 }
 
-float Network::forward(float in, float label) {
-    layers[0].x(0,0) = in;
-    for (int i = 1; i < layers.size(); i++) {
-	layers[i].x = (layers[i-1].W * layers[i-1].x) + layers[i-1].b;
+float forward(Network* net, float in, float label) {
+    net->layers[0].x(0,0) = in;
+    for (int i = 1; i < net->layers.size(); i++) {
+	net->layers[i].x = (net->layers[i-1].W * net->layers[i-1].x) + net->layers[i-1].b;
     }
     return label-in;
 }
@@ -84,14 +83,14 @@ static void deriv(int in, const Network* network, Network* gradient, int label) 
     __enzyme_autodiff<void>(&Network::forward, enzyme_const, in, network, gradient, enzyme_const, label);
 }
 
-void Network::step() {
+void step(Network* net) {
     while (true) {
-	Network grad(layers.size()-2, layers[1].x.cols(), layers[1].x.rows()); 
-	float loss = forward(3, 6);
-	deriv(3, this, &grad, 6);
-	for (int i = 0; i < layers.size(); i++) {
-	    layers[i].b -= 0.01 * grad.layers[i].b;
-	    layers[i].W -= 0.01 * grad.layers[i].W;
+	Network grad(net->layers.size()-2, net->layers[1].x.cols(), net->layers[1].x.rows()); 
+	float loss = forward(net, 3, 6);
+	deriv(3, net, &grad, 6);
+	for (int i = 0; i < net->layers.size(); i++) {
+	    net->layers[i].b -= 0.01 * grad.layers[i].b;
+	    net->layers[i].W -= 0.01 * grad.layers[i].W;
 	}
 	// std::cout << loss << "\n";
     }
@@ -99,5 +98,5 @@ void Network::step() {
 
 int main() {
     Network n(const_cast<char*>("./ref"), 1, 4, 1);
-    n.step();
+    step(&n);
 }
